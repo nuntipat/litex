@@ -90,6 +90,10 @@ CPU_GCC_TRIPLE_RISCV32 = CPU_GCC_TRIPLE_RISCV64 + (
     "riscv-none-elf",
 )
 
+CPU_GCC_TRIPLE_COREV32 = (
+    "riscv32-corev-elf",
+)
+
 # CPUs Collection ----------------------------------------------------------------------------------
 
 def collect_cpus():

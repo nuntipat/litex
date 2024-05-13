@@ -15,11 +15,11 @@ from litex.gen import *
 from litex import get_data_mod
 from litex.soc.interconnect import wishbone, stream
 from litex.soc.interconnect.csr import *
-from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV32
+from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV32, CPU_GCC_TRIPLE_COREV32
 
 # Variants -----------------------------------------------------------------------------------------
 
-CPU_VARIANTS = ["standard", "standard+fpu"]
+CPU_VARIANTS = ["standard", "standard+fpu", "standard+pulp", "standard+fpu+pulp"]
 
 # GCC Flags ----------------------------------------------------------------------------------------
 
@@ -33,6 +33,8 @@ GCC_FLAGS = {
     #                       i    macfd
     "standard": "-march=rv32i2p0_mc    -mabi=ilp32 ",
     "standard+fpu": "-march=rv32i2p0_mfc   -mabi=ilp32 ",
+    "standard+pulp": "-march=rv32i2p0_mc_xcvhwlp -mabi=ilp32 ",
+    "standard+fpu+pulp": "-march=rv32i2p0_mfc_xcvhwlp -mabi=ilp32 "
 }
 
 # OBI / APB / Trace Layouts ------------------------------------------------------------------------
@@ -252,11 +254,11 @@ class CV32E40P(CPU):
     variants             = CPU_VARIANTS
     data_width           = 32
     endianness           = "little"
-    gcc_triple           = CPU_GCC_TRIPLE_RISCV32
     linker_output_format = "elf32-littleriscv"
     nop                  = "nop"
     io_regions           = {0x80000000: 0x80000000} # Origin, Length.
-    has_fpu              = ["standard+fpu"]
+    has_fpu              = ["standard+fpu", "standard+fpu+pulp"]
+    has_pulp             = ["standard+pulp", "standard+fpu+pulp"]
 
     # GCC Flags.
     @property
@@ -275,6 +277,7 @@ class CV32E40P(CPU):
         self.memory_buses      = []
         self.interrupt         = Signal(16)
         self.interrupt_padding = Signal(16)
+        self.gcc_triple        = CPU_GCC_TRIPLE_COREV32 if 'pulp' in self.variant else CPU_GCC_TRIPLE_RISCV32
 
         ibus = Record(obi_layout)
         dbus = Record(obi_layout)
@@ -328,10 +331,14 @@ class CV32E40P(CPU):
             i_fetch_enable_i = 1,
         )
 
+        # Specific variant parameters.
+        if variant in self.has_pulp:
+            self.cpu_params.update(p_COREV_PULP=1)
+        if variant in self.has_fpu:
+            self.cpu_params.update(p_FPU=1)
+
         # Add Verilog sources.
         if variant in self.has_fpu:
-            # Specific FPU variant parameters/files.
-            self.cpu_params.update(p_FPU=1)
             add_manifest_sources(platform, 'cv32e40p_fpu_manifest.flist')
         else:
             add_manifest_sources(platform, 'cv32e40p_manifest.flist')
